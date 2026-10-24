@@ -84,6 +84,7 @@ class MainActivity : Activity() {
         root.addView(ScrollView(this).apply { addView(scrollContent) },
             LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         setContentView(root)
+        loadSavedStandardReadings()
         compactButtons(root)
         applyTheme(root)
         status.text = "Grant Bluetooth permissions, then scan."
@@ -355,6 +356,16 @@ Next step: check the watch's ordinary Settings > System/About screen, if present
 
     private val standardReadings = linkedMapOf<String, String>()
 
+    private fun loadSavedStandardReadings() {
+        val prefs = getSharedPreferences("stormlab_diagnostics", MODE_PRIVATE)
+        for (label in listOf(
+            "Manufacturer Name", "Model Number", "Serial Number",
+            "Hardware Revision", "Firmware Revision (Bluetooth)", "Battery Level"
+        )) {
+            prefs.getString(label, null)?.let { standardReadings[label] = it }
+        }
+    }
+
     private fun handleStandardRead(g: BluetoothGatt, ch: BluetoothGattCharacteristic, code: Int, bytes: ByteArray?) {
         runOnUiThread {
             if (gatt !== g) return@runOnUiThread
@@ -378,6 +389,7 @@ Next step: check the watch's ordinary Settings > System/About screen, if present
                 if (printable) String(bytes, Charsets.UTF_8) else bytes.joinToString(" ") { "%02X".format(it.toInt() and 0xff) }
             }
             standardReadings[label] = valueText
+            getSharedPreferences("stormlab_diagnostics", MODE_PRIVATE).edit().putString(label, valueText).apply()
             details.append("\n$label (${ch.uuid}): $valueText")
             val next = pendingStandardIndex + 1
             handler.postDelayed({ readNextStandardInfo(g, pendingStandardList, next) }, 250)
