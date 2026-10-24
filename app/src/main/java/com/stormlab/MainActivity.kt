@@ -195,6 +195,9 @@ App status: ${status.text}
 --- Current service / diagnostic details ---
 ${details.text}
 
+--- Saved standard Bluetooth readings ---
+${if (standardReadings.isEmpty()) "No standard readings saved in this session." else standardReadings.entries.joinToString("\n") { "${it.key}: ${it.value}" }}
+
 Safety: StormLab discovery is read-only. No firmware was written or flashed."""
         try {
             val clipboard = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
@@ -350,6 +353,8 @@ Next step: check the watch's ordinary Settings > System/About screen, if present
         } catch (e: Exception) { status.text = "Connection failed: ${e.message}" }
     }
 
+    private val standardReadings = linkedMapOf<String, String>()
+
     private fun handleStandardRead(g: BluetoothGatt, ch: BluetoothGattCharacteristic, code: Int, bytes: ByteArray?) {
         runOnUiThread {
             if (gatt !== g) return@runOnUiThread
@@ -372,6 +377,7 @@ Next step: check the watch's ordinary Settings > System/About screen, if present
                 val printable = bytes.all { b -> (b.toInt() and 0xff) in 32..126 }
                 if (printable) String(bytes, Charsets.UTF_8) else bytes.joinToString(" ") { "%02X".format(it.toInt() and 0xff) }
             }
+            standardReadings[label] = valueText
             details.append("\n$label (${ch.uuid}): $valueText")
             val next = pendingStandardIndex + 1
             handler.postDelayed({ readNextStandardInfo(g, pendingStandardList, next) }, 250)
