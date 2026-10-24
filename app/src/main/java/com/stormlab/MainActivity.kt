@@ -46,6 +46,7 @@ class MainActivity : Activity() {
             setOnClickListener { scan() }
         })
         root.addView(Button(this).apply { text = "Show paired / connected devices"; setOnClickListener { showPairedDevices() } })
+        root.addView(Button(this).apply { text = "Custom OS readiness check"; setOnClickListener { showOsReadiness() } })
         root.addView(Button(this).apply { text = "Stop scan"; setOnClickListener { stopScan() } })
         root.addView(Button(this).apply {
             text = "Disconnect"
@@ -114,6 +115,23 @@ class MainActivity : Activity() {
         checkSelfPermission(Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED &&
             checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
     } else checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
+    private fun showOsReadiness() {
+        status.text = "Custom OS readiness: not yet verified"
+        details.text = """CUSTOM OS READINESS — boAt Storm Call 3
+
+Watch platform: Crest+ OS (manufacturer documentation)
+Bootloader / recovery access: NOT VERIFIED
+Chipset and flash memory layout: UNKNOWN
+Compatible custom firmware image: NOT VERIFIED
+Verified flashing protocol: NOT FOUND
+
+RESULT: NOT READY TO FLASH.
+
+Bluetooth pairing and GATT service discovery do not establish operating-system installation access. StormLab will not write firmware or send undocumented commands. A safe installer would require verified hardware identification, a matching firmware image, a documented flashing method, and a recovery path.
+
+Next step: check the watch's ordinary Settings > System/About screen, if present, and note the exact model, software version, and hardware identifiers. Do not attempt to load a firmware file unless it is confirmed for this exact model."""
+    }
 
     private fun showPairedDevices() {
         if (!permitted()) { requestPermissionsIfNeeded(); status.text = "Allow Nearby devices / Bluetooth permission, then tap this again."; return }
