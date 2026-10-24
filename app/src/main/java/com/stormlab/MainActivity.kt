@@ -47,6 +47,7 @@ class MainActivity : Activity() {
         })
         root.addView(Button(this).apply { text = "Show paired / connected devices"; setOnClickListener { showPairedDevices() } })
         root.addView(Button(this).apply { text = "Custom OS readiness check"; setOnClickListener { showOsReadiness() } })
+        root.addView(Button(this).apply { text = "Firmware update / flash status"; setOnClickListener { showFirmwareUpdate() } })
         root.addView(Button(this).apply {
             text = "Copy diagnostic report"
             setOnClickListener { copyDiagnosticReport() }
@@ -207,6 +208,37 @@ Safety: StormLab discovery is read-only. No firmware was written or flashed."""
         } catch (e: Exception) {
             Toast.makeText(this, "Could not copy report: ${e.message ?: "unknown error"}", Toast.LENGTH_LONG).show()
         }
+    }
+
+    private fun showFirmwareUpdate() {
+        status.text = "Firmware update: blocked pending verified model-specific method"
+        details.text = """STORMLAB FIRMWARE UPDATE
+Watch: boAt Storm Call 3
+Bluetooth model field: ${standardReadings["Model Number"] ?: "NOT READ"}
+Firmware revision: ${standardReadings["Firmware Revision (Bluetooth)"] ?: "NOT READ"}
+
+CURRENT RESULT: FLASHING IS NOT ENABLED.
+
+Before any firmware write can be safely implemented, all of these must be verified for this exact watch:
+[ ] Official or otherwise trustworthy firmware image for exact model and hardware revision
+[ ] Cryptographic hash / signature or other reliable authenticity check
+[ ] Documented update transport and protocol for this model
+[ ] Verified bootloader / update mode and required permissions
+[ ] A recovery path if power or transfer fails
+[ ] Evidence the image is compatible with the currently installed firmware
+
+What StormLab can do now:
+• Read standard Bluetooth identity and battery information.
+• Display this checklist and collect diagnostics.
+• It will not write to vendor-specific GATT characteristics or send guessed update commands.
+
+Why this is blocked:
+BLE WRITE properties only mean a characteristic accepts some data; they do not prove it accepts firmware or identify the required packet format. A guessed write can disable the watch.
+
+NEXT STEP
+Use the official boAt / Crest update path if one is offered for this watch. If you find an official firmware package or model-specific technical documentation, verify the exact model and update procedure before adding any flashing implementation.
+
+No firmware has been selected, transferred, or flashed."""
     }
 
     private fun showOsReadiness() {
