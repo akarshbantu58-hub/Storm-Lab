@@ -210,20 +210,37 @@ Safety: StormLab discovery is read-only. No firmware was written or flashed."""
     }
 
     private fun showOsReadiness() {
-        status.text = "Custom OS readiness: not yet verified"
-        details.text = """CUSTOM OS READINESS — boAt Storm Call 3
+        status.text = "Custom OS feasibility: evidence review"
+        fun reading(label: String): String = standardReadings[label] ?: "NOT READ"
+        details.text = """CUSTOM OS FEASIBILITY — boAt Storm Call 3
 
-Watch platform: Crest+ OS (manufacturer documentation)
-Bootloader / recovery access: NOT VERIFIED
-Chipset and flash memory layout: UNKNOWN
-Compatible custom firmware image: NOT VERIFIED
-Verified flashing protocol: NOT FOUND
+IDENTIFIERS READ OVER STANDARD BLUETOOTH
+Manufacturer: ${reading("Manufacturer Name")}
+Bluetooth model field: ${reading("Model Number")}
+Hardware revision: ${reading("Hardware Revision")}
+Bluetooth firmware revision: ${reading("Firmware Revision (Bluetooth)")}
+Battery at last reading: ${reading("Battery Level")}
 
-RESULT: NOT READY TO FLASH.
+EVIDENCE CHECKLIST
+[KNOWN] Watch reports firmware V3.00.58.
+[KNOWN] BLE GATT exposes standard Device Information and Battery services.
+[UNKNOWN] Exact chipset / SoC and flash layout.
+[UNKNOWN] Whether a bootloader or recovery mode exists and is accessible.
+[NOT FOUND] Publicly verified custom OS image for exact model WA34V10 / Storm Call 3.
+[NOT FOUND] Documented, model-specific installation and recovery procedure.
 
-Bluetooth pairing and GATT service discovery do not establish operating-system installation access. StormLab will not write firmware or send undocumented commands. A safe installer would require verified hardware identification, a matching firmware image, a documented flashing method, and a recovery path.
+ASSESSMENT: NOT READY TO INSTALL CUSTOM OS.
 
-Next step: check the watch's ordinary Settings > System/About screen, if present, and note the exact model, software version, and hardware identifiers. Do not attempt to load a firmware file unless it is confirmed for this exact model."""
+Why: BLE services and readable identity fields describe the watch's Bluetooth interface; they do not demonstrate OS-level access or an unlockable bootloader. Vendor-specific writable characteristics are intentionally not tested.
+
+SAFE NEXT STEPS
+1. Keep the watch on its current working firmware.
+2. Check only ordinary Settings > About for any additional model / hardware identifiers.
+3. Look for an official vendor statement or a documented community project explicitly naming both WA34V10 and Storm Call 3.
+4. Reconsider feasibility only if an exact-match firmware source, installation procedure, and recovery path can all be verified.
+
+DO NOT FLASH
+StormLab performs no firmware writes, does not send undocumented vendor commands, and does not attempt hidden bootloader / recovery entry. Unknown items remain unknown until supported by reliable evidence."""
     }
 
     private fun showPairedDevices() {
