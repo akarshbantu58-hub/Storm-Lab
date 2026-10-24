@@ -13,3 +13,7 @@ Open **Actions** → **Build StormLab APK** → **Run workflow**. When it finish
 
 ## Safety and limitations
 This app does not install Android/Wear OS on the watch, provide a browser, or play YouTube. Finding BLE services does not prove the watch protocol is compatible. Do not send arbitrary writes or firmware images; unverified firmware can permanently damage the watch.
+
+## Custom firmware investigation
+
+See [docs/CUSTOM_FIRMWARE_ROADMAP.md](docs/CUSTOM_FIRMWARE_ROADMAP.md) for the hardware evidence, recovery requirements, safe companion-feature plan, and current blockers. Watch firmware flashing remains disabled until exact-model compatibility and a reliable recovery path are verified.
