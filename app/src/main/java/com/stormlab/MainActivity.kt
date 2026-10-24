@@ -120,6 +120,56 @@ class MainActivity : Activity() {
             checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
     } else checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
+    private fun readSafeStandardInfo(g: BluetoothGatt) {
+        val candidates = mutableListOf<BluetoothGattCharacteristic>()
+        for (service in g.services) {
+            when (service.uuid.toString().lowercase()) {
+                "0000180a-0000-1000-8000-00805f9b34fb" -> {
+                    for (ch in service.characteristics) {
+                        val id = ch.uuid.toString().lowercase()
+                        if (id in setOf(
+                                "00002a29-0000-1000-8000-00805f9b34fb",
+                                "00002a24-0000-1000-8000-00805f9b34fb",
+                                "00002a25-0000-1000-8000-00805f9b34fb",
+                                "00002a27-0000-1000-8000-00805f9b34fb",
+                                "00002a26-0000-1000-8000-00805f9b34fb"
+                            ) && ch.properties and BluetoothGattCharacteristic.PROPERTY_READ != 0
+                        ) candidates.add(ch)
+                    }
+                }
+                "0000180f-0000-1000-8000-00805f9b34fb" -> {
+                    service.getCharacteristic(java.util.UUID.fromString("00002a19-0000-1000-8000-00805f9b34fb"))?.let {
+                        if (it.properties and BluetoothGattCharacteristic.PROPERTY_READ != 0) candidates.add(it)
+                    }
+                }
+            }
+        }
+        if (candidates.isEmpty()) {
+            details.append("\\n\\nNo readable standard information or battery characteristics found.")
+            return
+        }
+        details.append("\\n\\nREADING STANDARD DEVICE INFO (read-only)…")
+        readNextStandardInfo(g, candidates, 0)
+    }
+
+    private fun readNextStandardInfo(g: BluetoothGatt, list: List<BluetoothGattCharacteristic>, index: Int) {
+        if (index >= list.size) return
+        if (gatt !== g) return
+        val ch = list[index]
+        pendingStandardRead = ch
+        pendingStandardIndex = index
+        pendingStandardList = list
+        val started = try { g.readCharacteristic(ch) } catch (_: Exception) { false }
+        if (!started) {
+            details.append("\\nRead could not start for ${ch.uuid}.")
+            handler.postDelayed({ readNextStandardInfo(g, list, index + 1) }, 250)
+        }
+    }
+
+    private var pendingStandardRead: BluetoothGattCharacteristic? = null
+    private var pendingStandardList: List<BluetoothGattCharacteristic> = emptyList()
+    private var pendingStandardIndex: Int = 0
+
     private fun copyDiagnosticReport() {
         val report = """StormLab diagnostic report
 Watch: boAt Storm Call 3
@@ -287,6 +337,34 @@ Next step: check the watch's ordinary Settings > System/About screen, if present
         } catch (e: Exception) { status.text = "Connection failed: ${e.message}" }
     }
 
+    private fun handleStandardRead(g: BluetoothGatt, ch: BluetoothGattCharacteristic, code: Int, bytes: ByteArray?) {
+        runOnUiThread {
+            if (gatt !== g) return@runOnUiThread
+            val label = when (ch.uuid.toString().lowercase()) {
+                "00002a29-0000-1000-8000-00805f9b34fb" -> "Manufacturer Name"
+                "00002a24-0000-1000-8000-00805f9b34fb" -> "Model Number"
+                "00002a25-0000-1000-8000-00805f9b34fb" -> "Serial Number"
+                "00002a27-0000-1000-8000-00805f9b34fb" -> "Hardware Revision"
+                "00002a26-0000-1000-8000-00805f9b34fb" -> "Firmware Revision (Bluetooth)"
+                "00002a19-0000-1000-8000-00805f9b34fb" -> "Battery Level"
+                else -> ch.uuid.toString()
+            }
+            val valueText = if (code != BluetoothGatt.GATT_SUCCESS) {
+                "read failed (GATT status $code)"
+            } else if (bytes == null || bytes.isEmpty()) {
+                "empty value"
+            } else if (ch.uuid.toString().lowercase() == "00002a19-0000-1000-8000-00805f9b34fb") {
+                "${bytes[0].toInt() and 0xff}%"
+            } else {
+                val printable = bytes.all { b -> (b.toInt() and 0xff) in 32..126 }
+                if (printable) String(bytes, Charsets.UTF_8) else bytes.joinToString(" ") { "%02X".format(it.toInt() and 0xff) }
+            }
+            details.append("\\n$label (${ch.uuid}): $valueText")
+            val next = pendingStandardIndex + 1
+            handler.postDelayed({ readNextStandardInfo(g, pendingStandardList, next) }, 250)
+        }
+    }
+
     private val gattCallback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(g: BluetoothGatt, code: Int, state: Int) {
             runOnUiThread {
@@ -296,6 +374,15 @@ Next step: check the watch's ordinary Settings > System/About screen, if present
                 } else if (state == BluetoothProfile.STATE_DISCONNECTED) status.text = "Disconnected (status $code)."
             }
         }
+        override fun onCharacteristicRead(g: BluetoothGatt, characteristic: BluetoothGattCharacteristic, statusCode: Int) {
+            handleStandardRead(g, characteristic, statusCode, characteristic.value)
+        }
+
+        @Suppress("DEPRECATION")
+        override fun onCharacteristicRead(g: BluetoothGatt, characteristic: BluetoothGattCharacteristic, value: ByteArray, statusCode: Int) {
+            handleStandardRead(g, characteristic, statusCode, value)
+        }
+
         override fun onServicesDiscovered(g: BluetoothGatt, code: Int) {
             runOnUiThread {
                 if (code != BluetoothGatt.GATT_SUCCESS) { details.text = "Service discovery failed: $code"; return@runOnUiThread }
@@ -316,7 +403,8 @@ Next step: check the watch's ordinary Settings > System/About screen, if present
                 }
                 out.append("Discovery only: this app does not write data or flash firmware.")
                 details.text = out.toString()
-                status.text = "Service discovery complete."
+                status.text = "Service discovery complete. Reading standard info…"
+                readSafeStandardInfo(g)
             }
         }
     }
