@@ -45,6 +45,7 @@ class MainActivity : Activity() {
             text = "Scan for Bluetooth devices"
             setOnClickListener { scan() }
         })
+        root.addView(Button(this).apply { text = "Open calculator"; setOnClickListener { showCalculator() } })
         root.addView(Button(this).apply { text = "Show paired / connected devices"; setOnClickListener { showPairedDevices() } })
         root.addView(Button(this).apply { text = "Custom OS readiness check"; setOnClickListener { showOsReadiness() } })
         root.addView(Button(this).apply { text = "Firmware update / flash status"; setOnClickListener { showFirmwareUpdate() } })
@@ -90,6 +91,121 @@ class MainActivity : Activity() {
         applyTheme(root)
         status.text = "Grant Bluetooth permissions, then scan."
         requestPermissionsIfNeeded()
+    }
+
+    private fun showCalculator() {
+        val panel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(16, 12, 16, 8)
+        }
+        val display = TextView(this).apply {
+            text = "0"
+            textSize = 32f
+            gravity = android.view.Gravity.END or android.view.Gravity.CENTER_VERTICAL
+            setPadding(12, 18, 12, 18)
+            setTextIsSelectable(true)
+        }
+        panel.addView(display, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, (76 * resources.displayMetrics.density).toInt()
+        ))
+        val grid = GridLayout(this).apply { columnCount = 4 }
+        panel.addView(grid)
+        var input = "0"
+        var stored: Double? = null
+        var operation: Char? = null
+        var replaceInput = false
+        var error = false
+
+        fun format(value: Double): String {
+            if (!value.isFinite()) return "Error"
+            val rounded = if (kotlin.math.abs(value) < 1e15) value else return value.toString()
+            return if (rounded == rounded.toLong().toDouble()) rounded.toLong().toString()
+            else java.text.DecimalFormat("0.##########").format(rounded)
+        }
+        fun show() { display.text = input }
+        fun calculate(a: Double, b: Double, op: Char): Double? = when (op) {
+            '+' -> a + b
+            '-' -> a - b
+            '×' -> a * b
+            '÷' -> if (b == 0.0) null else a / b
+            else -> b
+        }
+        fun press(key: String) {
+            if (error && key !in listOf("C", "⌫")) {
+                input = "0"; stored = null; operation = null; error = false; replaceInput = false
+            }
+            when (key) {
+                "C" -> { input = "0"; stored = null; operation = null; replaceInput = false; error = false }
+                "⌫" -> {
+                    if (replaceInput) { input = "0"; replaceInput = false }
+                    else input = if (input.length <= 1 || (input.length == 2 && input.startsWith("-"))) "0" else input.dropLast(1)
+                }
+                "." -> {
+                    if (replaceInput) { input = "0."; replaceInput = false }
+                    else if (!input.contains(".")) input += "."
+                }
+                "+", "-", "×", "÷" -> {
+                    val current = input.toDoubleOrNull()
+                    if (current != null) {
+                        val op = key[0]
+                        if (stored != null && operation != null && !replaceInput) {
+                            val result = calculate(stored!!, current, operation!!)
+                            if (result == null) { input = "Cannot divide by zero"; error = true; show(); return }
+                            input = format(result)
+                            stored = result
+                        } else stored = current
+                        operation = op
+                        replaceInput = true
+                    }
+                }
+                "=" -> {
+                    val a = stored
+                    val b = input.toDoubleOrNull()
+                    val op = operation
+                    if (a != null && b != null && op != null) {
+                        val result = calculate(a, b, op)
+                        if (result == null) { input = "Cannot divide by zero"; error = true }
+                        else input = format(result)
+                        stored = null; operation = null; replaceInput = true
+                    }
+                }
+                else -> {
+                    if (key.length == 1 && key[0].isDigit()) {
+                        input = if (replaceInput || input == "0") key else input + key
+                        replaceInput = false
+                    }
+                }
+            }
+            show()
+        }
+        val keys = listOf(
+            "C", "⌫", "÷", "×",
+            "7", "8", "9", "-",
+            "4", "5", "6", "+",
+            "1", "2", "3", "=",
+            "0", ".", "", ""
+        )
+        for (key in keys) {
+            val button = Button(this).apply {
+                text = key
+                textSize = 18f
+                isEnabled = key.isNotEmpty()
+                if (key.isNotEmpty()) setOnClickListener { press(key) }
+            }
+            val params = GridLayout.LayoutParams().apply {
+                width = 0
+                height = (58 * resources.displayMetrics.density).toInt()
+                columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
+                setMargins(3, 3, 3, 3)
+            }
+            grid.addView(button, params)
+        }
+        applyTheme(panel)
+        android.app.AlertDialog.Builder(this)
+            .setTitle("StormLab Calculator")
+            .setView(panel)
+            .setPositiveButton("Close", null)
+            .show()
     }
 
     private fun compactButtons(view: View) {
