@@ -47,6 +47,10 @@ class MainActivity : Activity() {
         })
         root.addView(Button(this).apply { text = "Show paired / connected devices"; setOnClickListener { showPairedDevices() } })
         root.addView(Button(this).apply { text = "Custom OS readiness check"; setOnClickListener { showOsReadiness() } })
+        root.addView(Button(this).apply {
+            text = "Copy diagnostic report"
+            setOnClickListener { copyDiagnosticReport() }
+        })
         root.addView(Button(this).apply { text = "Stop scan"; setOnClickListener { stopScan() } })
         root.addView(Button(this).apply {
             text = "Disconnect"
@@ -116,6 +120,28 @@ class MainActivity : Activity() {
             checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
     } else checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
+    private fun copyDiagnosticReport() {
+        val report = """StormLab diagnostic report
+Watch: boAt Storm Call 3
+Bluetooth name: STORMCALL3_1A46
+Firmware shown on watch: V3.00.58
+Watch MAC shown in About: 4D:23:0B:C0:1A:46
+
+App status: ${status.text}
+
+--- Current service / diagnostic details ---
+${details.text}
+
+Safety: StormLab discovery is read-only. No firmware was written or flashed."""
+        try {
+            val clipboard = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("StormLab diagnostic report", report))
+            Toast.makeText(this, "Diagnostic report copied. Paste it into your chat.", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Could not copy report: ${e.message ?: "unknown error"}", Toast.LENGTH_LONG).show()
+        }
+    }
+
     private fun showOsReadiness() {
         status.text = "Custom OS readiness: not yet verified"
         details.text = """CUSTOM OS READINESS — boAt Storm Call 3
@@ -150,7 +176,7 @@ Next step: check the watch's ordinary Settings > System/About screen, if present
                 val name = try { device.name ?: "Unnamed paired device" } catch (_: SecurityException) { "Paired device" }
                 found[device.address] = device
                 devicesBox.addView(Button(this).apply {
-                    text = "$name\\n${device.address} • paired"
+                    text = "$name\n${device.address} • paired"
                     textSize = 12f
                     setOnClickListener { connect(device, name) }
                 })
