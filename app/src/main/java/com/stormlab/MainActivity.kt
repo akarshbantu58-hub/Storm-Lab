@@ -36,7 +36,7 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(24, 24, 24, 16)
+            setPadding(16, 16, 16, 12)
         }
         root.addView(TextView(this).apply { text = "StormLab"; textSize = 28f; tag = "title" })
         status = TextView(this).apply { textSize = 15f; setPadding(0, 10, 0, 10) }
@@ -84,9 +84,22 @@ class MainActivity : Activity() {
         root.addView(ScrollView(this).apply { addView(scrollContent) },
             LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         setContentView(root)
+        compactButtons(root)
         applyTheme(root)
         status.text = "Grant Bluetooth permissions, then scan."
         requestPermissionsIfNeeded()
+    }
+
+    private fun compactButtons(view: View) {
+        if (view is Button) {
+            view.minHeight = (44 * resources.displayMetrics.density).toInt()
+            view.minimumHeight = (44 * resources.displayMetrics.density).toInt()
+            view.setPadding(12, 6, 12, 6)
+            view.textSize = 14f
+        }
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) compactButtons(view.getChildAt(i))
+        }
     }
 
     private fun applyTheme(view: View) {
@@ -145,10 +158,10 @@ class MainActivity : Activity() {
             }
         }
         if (candidates.isEmpty()) {
-            details.append("\\n\\nNo readable standard information or battery characteristics found.")
+            details.append("\n\nNo readable standard information or battery characteristics found.")
             return
         }
-        details.append("\\n\\nREADING STANDARD DEVICE INFO (read-only)…")
+        details.append("\n\nREADING STANDARD DEVICE INFO (read-only)…")
         readNextStandardInfo(g, candidates, 0)
     }
 
@@ -161,7 +174,7 @@ class MainActivity : Activity() {
         pendingStandardList = list
         val started = try { g.readCharacteristic(ch) } catch (_: Exception) { false }
         if (!started) {
-            details.append("\\nRead could not start for ${ch.uuid}.")
+            details.append("\nRead could not start for ${ch.uuid}.")
             handler.postDelayed({ readNextStandardInfo(g, list, index + 1) }, 250)
         }
     }
@@ -359,7 +372,7 @@ Next step: check the watch's ordinary Settings > System/About screen, if present
                 val printable = bytes.all { b -> (b.toInt() and 0xff) in 32..126 }
                 if (printable) String(bytes, Charsets.UTF_8) else bytes.joinToString(" ") { "%02X".format(it.toInt() and 0xff) }
             }
-            details.append("\\n$label (${ch.uuid}): $valueText")
+            details.append("\n$label (${ch.uuid}): $valueText")
             val next = pendingStandardIndex + 1
             handler.postDelayed({ readNextStandardInfo(g, pendingStandardList, next) }, 250)
         }
