@@ -45,6 +45,7 @@ class MainActivity : Activity() {
             text = "Scan for Bluetooth devices"
             setOnClickListener { scan() }
         })
+        root.addView(Button(this).apply { text = "Show paired / connected devices"; setOnClickListener { showPairedDevices() } })
         root.addView(Button(this).apply { text = "Stop scan"; setOnClickListener { stopScan() } })
         root.addView(Button(this).apply {
             text = "Disconnect"
@@ -113,6 +114,38 @@ class MainActivity : Activity() {
         checkSelfPermission(Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED &&
             checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
     } else checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
+    private fun showPairedDevices() {
+        if (!permitted()) { requestPermissionsIfNeeded(); status.text = "Allow Nearby devices / Bluetooth permission, then tap this again."; return }
+        val a = adapter
+        if (a == null || !a.isEnabled) { status.text = "Turn Bluetooth on in tablet settings."; return }
+        devicesBox.removeAllViews()
+        found.clear()
+        try {
+            val paired = a.bondedDevices
+            if (paired.isEmpty()) {
+                status.text = "Android reports no paired Bluetooth devices."
+                details.text = "Pair the watch in tablet Bluetooth settings first, then tap Show paired / connected devices."
+                return
+            }
+            for (device in paired) {
+                val name = try { device.name ?: "Unnamed paired device" } catch (_: SecurityException) { "Paired device" }
+                found[device.address] = device
+                devicesBox.addView(Button(this).apply {
+                    text = "$name\\n${device.address} • paired"
+                    textSize = 12f
+                    setOnClickListener { connect(device, name) }
+                })
+            }
+            status.text = "Listed ${paired.size} paired device(s). Tap your watch to try connecting."
+            details.text = "Paired in Android does not always mean the watch exposes a controllable BLE service. This app can only inspect services the watch makes available."
+            applyTheme(root)
+        } catch (e: SecurityException) {
+            status.text = "Bluetooth permission denied. Allow Nearby devices in Android app settings."
+        } catch (e: Exception) {
+            status.text = "Could not list paired devices: ${e.message ?: e.javaClass.simpleName}"
+        }
+    }
 
     private fun scan() {
         if (!permitted()) { requestPermissionsIfNeeded(); status.text = "Bluetooth permissions are needed."; return }
